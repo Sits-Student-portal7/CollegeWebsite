@@ -224,6 +224,13 @@ export default function App() {
     showToast(`Alert sent to owner regarding lost item "${title}".`);
   };
 
+  const handleRSVPEvent = (eventId: string) => {
+    setEvents((prev) =>
+      prev.map((e) => (e.id === eventId ? { ...e, rsvpd: true } : e))
+    );
+    showToast('RSVP confirmed! Event added to your campus calendar.');
+  };
+
   if (!currentUser) {
     return <LoginView onLogin={handleLogin} />;
   }
@@ -322,8 +329,9 @@ export default function App() {
               notices={notices}
               events={events}
               onNavigateTab={setActiveTab}
-              onOpenAIPrompt={() => setAiOpen(true)}
+              onOpenAIPrompt={handleOpenAIAssistantWithPrompt}
               onSemesterChange={handleSemesterChange}
+              onRSVPEvent={handleRSVPEvent}
             />
           )}
 

@@ -20,6 +20,11 @@ export const LostFoundView: React.FC<LostFoundViewProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('All Categories');
   const [selectedLocation, setSelectedLocation] = useState<string>('All Locations');
 
+  const totalReported = items.length;
+  const lostCount = items.filter((i) => i.type === 'lost').length;
+  const foundCount = items.filter((i) => i.type === 'found').length;
+  const myListingsCount = items.filter((i) => i.isOwnerListing).length;
+
   const filteredItems = items.filter((item) => {
     const matchesSearch =
       item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -72,7 +77,7 @@ export const LostFoundView: React.FC<LostFoundViewProps> = ({
           <div>
             <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider">Total Reported</p>
             <p className="text-2xl font-black text-indigo-700 mt-0.5">
-              20 <span className="text-xs text-indigo-500 font-normal">Items</span>
+              {totalReported} <span className="text-xs text-indigo-500 font-normal">Items</span>
             </p>
           </div>
         </div>
@@ -83,10 +88,10 @@ export const LostFoundView: React.FC<LostFoundViewProps> = ({
           </div>
           <div>
             <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider">
-              Recently Recovered
+              Found Items
             </p>
             <p className="text-2xl font-black text-indigo-700 mt-0.5">
-              14 <span className="text-xs text-indigo-500 font-normal">Items</span>
+              {foundCount} <span className="text-xs text-indigo-500 font-normal">Items</span>
             </p>
           </div>
         </div>
@@ -98,7 +103,7 @@ export const LostFoundView: React.FC<LostFoundViewProps> = ({
           <div>
             <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider">Your Listings</p>
             <p className="text-2xl font-black text-indigo-700 mt-0.5">
-              1 <span className="text-xs text-indigo-500 font-normal">Active</span>
+              {myListingsCount} <span className="text-xs text-indigo-500 font-normal">Active</span>
             </p>
           </div>
         </div>
@@ -115,7 +120,7 @@ export const LostFoundView: React.FC<LostFoundViewProps> = ({
                 : 'bg-white text-indigo-600 border border-slate-200 hover:bg-slate-50'
             }`}
           >
-            All Items
+            All Items ({totalReported})
           </button>
           <button
             onClick={() => setFilterType('lost')}
@@ -126,8 +131,8 @@ export const LostFoundView: React.FC<LostFoundViewProps> = ({
             }`}
           >
             Lost Items
-            <span className="w-4 h-4 flex items-center justify-center bg-rose-100 text-rose-700 text-[10px] font-bold rounded-full">
-              8
+            <span className="px-1.5 py-0.5 flex items-center justify-center bg-rose-100 text-rose-700 text-[10px] font-bold rounded-full">
+              {lostCount}
             </span>
           </button>
           <button
@@ -139,19 +144,24 @@ export const LostFoundView: React.FC<LostFoundViewProps> = ({
             }`}
           >
             Found Items
-            <span className="w-4 h-4 flex items-center justify-center bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full">
-              12
+            <span className="px-1.5 py-0.5 flex items-center justify-center bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full">
+              {foundCount}
             </span>
           </button>
           <button
             onClick={() => setFilterType('my-items')}
-            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors flex items-center gap-1.5 ${
               filterType === 'my-items'
                 ? 'bg-indigo-700 text-white shadow-xs'
                 : 'bg-white text-indigo-600 border border-slate-200 hover:bg-slate-50'
             }`}
           >
             My Reported Items
+            {myListingsCount > 0 && (
+              <span className="px-1.5 py-0.5 flex items-center justify-center bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded-full">
+                {myListingsCount}
+              </span>
+            )}
           </button>
         </div>
 

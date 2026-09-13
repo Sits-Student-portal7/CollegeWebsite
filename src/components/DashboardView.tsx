@@ -8,6 +8,7 @@ interface DashboardViewProps {
   onNavigateTab: (tab: 'academics' | 'fees' | 'resources' | 'lost-found') => void;
   onOpenAIPrompt: (prompt: string) => void;
   onSemesterChange?: (semester: number) => void;
+  onRSVPEvent?: (eventId: string) => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -17,6 +18,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onNavigateTab,
   onOpenAIPrompt,
   onSemesterChange,
+  onRSVPEvent,
 }) => {
   return (
     <div className="space-y-6 max-w-[1440px] mx-auto pb-12">
@@ -225,7 +227,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       <span className="material-symbols-outlined text-xs">check</span> RSVP'd
                     </span>
                   ) : (
-                    <button className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
+                    <button
+                      onClick={() => onRSVPEvent?.(ev.id)}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                    >
                       RSVP Now
                     </button>
                   )}

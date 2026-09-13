@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface AIAssistantWidgetProps {
   isOpen: boolean;
@@ -28,6 +28,15 @@ export const AIAssistantWidget: React.FC<AIAssistantWidgetProps> = ({
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, loading]);
 
   useEffect(() => {
     if (isOpen && initialPrompt) {
@@ -146,6 +155,7 @@ export const AIAssistantWidget: React.FC<AIAssistantWidgetProps> = ({
                 ScholarCore AI is thinking...
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
 
           {/* Quick Suggestions Chips */}

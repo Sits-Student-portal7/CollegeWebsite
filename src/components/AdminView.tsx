@@ -211,6 +211,119 @@ export const AdminView: React.FC<AdminViewProps> = ({
     );
   }
 
+  if (activeTab === 'exam-control') {
+    return (
+      <div className="space-y-6">
+        <div className="bg-gradient-to-r from-slate-900 via-purple-950 to-slate-900 text-white rounded-2xl p-6 shadow-md border border-purple-800/40">
+          <div className="flex items-center gap-2 text-purple-300 text-xs font-semibold uppercase tracking-wider mb-1">
+            <span className="material-symbols-outlined text-sm">assignment</span>
+            Examination Control &amp; Evaluation Cell
+          </div>
+          <h2 className="text-2xl font-bold text-white">Office of the Controller of Examinations</h2>
+          <p className="text-purple-100/80 text-sm mt-0.5">
+            Manage semester exam schedules, hall ticket generation approvals, and invigilation duties.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <p className="text-xs font-medium text-slate-500">Upcoming Examination</p>
+            <h3 className="text-xl font-bold text-slate-900 mt-1">Semester 4 Mid-Terms</h3>
+            <p className="text-xs text-purple-600 font-semibold mt-1">Starts: Oct 25, 2025</p>
+          </div>
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <p className="text-xs font-medium text-slate-500">Hall Tickets Status</p>
+            <h3 className="text-xl font-bold text-emerald-600 mt-1">1,385 Generated</h3>
+            <p className="text-xs text-slate-500 mt-1">35 Pending Attendance Clearances</p>
+          </div>
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <p className="text-xs font-medium text-slate-500">Assigned Invigilators</p>
+            <h3 className="text-xl font-bold text-slate-900 mt-1">42 Faculty Members</h3>
+            <p className="text-xs text-slate-500 mt-1">14 Examination Halls</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-4">
+            <div>
+              <h3 className="font-bold text-slate-900 text-base">Examination Timetable &amp; Schedule</h3>
+              <p className="text-xs text-slate-500">Published official exam session dates and room assignments</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => onShowToast('Digital Hall Tickets approved and released for eligible students.')}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-sm">verified</span>
+                Release Hall Tickets
+              </button>
+              <button
+                onClick={() => onShowToast('Master Examination Timetable PDF exported successfully.')}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-sm">download</span>
+                Export Timetable
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider">
+                  <th className="py-3 px-4">Subject Code</th>
+                  <th className="py-3 px-4">Course Name</th>
+                  <th className="py-3 px-4">Exam Date</th>
+                  <th className="py-3 px-4">Time Window</th>
+                  <th className="py-3 px-4 text-center">Enrolled</th>
+                  <th className="py-3 px-4 text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-800 font-medium">
+                <tr className="hover:bg-slate-50/60">
+                  <td className="py-3.5 px-4 font-mono font-bold text-purple-700">CS401</td>
+                  <td className="py-3.5 px-4 font-semibold text-slate-900">Design &amp; Analysis of Algorithms</td>
+                  <td className="py-3.5 px-4">Oct 25, 2025</td>
+                  <td className="py-3.5 px-4">10:00 AM - 01:00 PM</td>
+                  <td className="py-3.5 px-4 text-center font-bold">142</td>
+                  <td className="py-3.5 px-4 text-center">
+                    <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full text-[11px] font-bold">
+                      Scheduled
+                    </span>
+                  </td>
+                </tr>
+                <tr className="hover:bg-slate-50/60">
+                  <td className="py-3.5 px-4 font-mono font-bold text-purple-700">CS402</td>
+                  <td className="py-3.5 px-4 font-semibold text-slate-900">Database Management Systems</td>
+                  <td className="py-3.5 px-4">Oct 27, 2025</td>
+                  <td className="py-3.5 px-4">10:00 AM - 01:00 PM</td>
+                  <td className="py-3.5 px-4 text-center font-bold">142</td>
+                  <td className="py-3.5 px-4 text-center">
+                    <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full text-[11px] font-bold">
+                      Scheduled
+                    </span>
+                  </td>
+                </tr>
+                <tr className="hover:bg-slate-50/60">
+                  <td className="py-3.5 px-4 font-mono font-bold text-purple-700">CS403</td>
+                  <td className="py-3.5 px-4 font-semibold text-slate-900">Operating Systems &amp; Kernel Architecture</td>
+                  <td className="py-3.5 px-4">Oct 29, 2025</td>
+                  <td className="py-3.5 px-4">10:00 AM - 01:00 PM</td>
+                  <td className="py-3.5 px-4 text-center font-bold">142</td>
+                  <td className="py-3.5 px-4 text-center">
+                    <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full text-[11px] font-bold">
+                      Scheduled
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Default: Admin Dashboard Control Center
   return (
     <div className="space-y-6">

@@ -30,25 +30,23 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-5xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-auto max-h-[90vh] flex flex-col">
-        <div className="p-6 overflow-y-auto">
-          <NotificationsView
-            notifications={notifications}
-            setNotifications={setNotifications}
-            onDownloadReceipt={onDownloadReceipt}
-            onDownloadResource={onDownloadResource}
-            onNavigateTab={(tab) => {
-              onNavigateTab(tab);
-              onClose();
-            }}
-            onOpenAIAssistant={(prompt) => {
-              onOpenAIAssistant(prompt);
-              onClose();
-            }}
-            onShowToast={onShowToast}
-            isModal={true}
-            onCloseModal={onClose}
-          />
-        </div>
+        <NotificationsView
+          notifications={notifications}
+          setNotifications={setNotifications}
+          onDownloadReceipt={onDownloadReceipt}
+          onDownloadResource={onDownloadResource}
+          onNavigateTab={(tab) => {
+            onNavigateTab(tab);
+            onClose();
+          }}
+          onOpenAIAssistant={(prompt) => {
+            onOpenAIAssistant(prompt);
+            onClose();
+          }}
+          onShowToast={onShowToast}
+          isModal={true}
+          onCloseModal={onClose}
+        />
       </div>
     </div>
   );
