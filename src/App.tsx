@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { User } from '@supabase/supabase-js';
+import { supabase } from './lib/supabase';
 import {
   TabType,
   StudentProfile,
   UserProfile,
+  UserRole,
   Notice,
   UpcomingEvent,
   FeeItem,
@@ -49,11 +52,173 @@ import { NotificationsModal } from './components/NotificationsModal';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [authLoading, setAuthLoading] = useState<boolean>(true);
+  const [authError, setAuthError] = useState<string | null>(null);
+
   const [student, setStudent] = useState<StudentProfile>(INITIAL_STUDENT_PROFILE);
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
 
+  /**
+   * Authoritatively loads the user profile from the database using their authenticated UID.
+   * Fails safely if the profile is missing, duplicated, or has an unauthorized role.
+   */
+  const loadUserProfile = async (user: User) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Database error fetching user profile:', error.message);
+        setAuthError(
+          `Database error loading profile: ${error.message}. Please verify the profiles table and RLS permissions.`
+        );
+        await supabase.auth.signOut();
+        setCurrentUser(null);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        setAuthError(
+          `Configuration error: No ERP profile found for authenticated account (${user.email}). User ID ${user.id} has not been provisioned in the profiles table.`
+        );
+        await supabase.auth.signOut();
+        setCurrentUser(null);
+        return;
+      }
+
+      if (data.length > 1) {
+        setAuthError(
+          `Data integrity violation: Multiple profile records found for User ID ${user.id}. Please contact the database administrator.`
+        );
+        await supabase.auth.signOut();
+        setCurrentUser(null);
+        return;
+      }
+
+      const profile = data[0];
+      const role = (profile.role || '').toLowerCase() as UserRole;
+
+      if (role !== 'student' && role !== 'faculty' && role !== 'admin') {
+        setAuthError(
+          `Access denied: Invalid or unauthorized role '${profile.role}' assigned to account ${user.email}. Only student, faculty, and admin roles are permitted.`
+        );
+        await supabase.auth.signOut();
+        setCurrentUser(null);
+        return;
+      }
+
+      let idNumber = profile.id_number || profile.idNumber || user.id.slice(0, 8);
+      let department = profile.department || 'Computer Science & Engineering';
+
+      // Look up linked student or faculty details if present
+      if (role === 'student') {
+        const { data: studentRecord } = await supabase
+          .from('students')
+          .select('roll_number, student_id, semester')
+          .eq('profile_id', user.id)
+          .maybeSingle();
+
+        if (studentRecord) {
+          idNumber = studentRecord.roll_number || studentRecord.student_id || idNumber;
+          if (studentRecord.semester) {
+            setStudent((prev) => ({ ...prev, semester: studentRecord.semester }));
+          }
+        }
+      } else if (role === 'faculty') {
+        const { data: facultyRecord } = await supabase
+          .from('faculty')
+          .select('faculty_id, designation')
+          .eq('profile_id', user.id)
+          .maybeSingle();
+
+        if (facultyRecord) {
+          idNumber = facultyRecord.faculty_id || idNumber;
+        }
+      }
+
+      const userProfile: UserProfile = {
+        name: profile.full_name || profile.name || user.email?.split('@')[0] || 'User',
+        idNumber: idNumber,
+        role: role,
+        department: department,
+        avatar:
+          profile.avatar_url ||
+          profile.avatar ||
+          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250',
+        email: profile.email || user.email || '',
+      };
+
+      setCurrentUser(userProfile);
+      setAuthError(null);
+
+      // Route view to authoritative role
+      if (role === 'student') {
+        setActiveTab('dashboard');
+        setStudent((prev) => ({
+          ...prev,
+          name: userProfile.name,
+          rollNo: userProfile.idNumber,
+          department: userProfile.department,
+          avatar: userProfile.avatar,
+        }));
+      } else if (role === 'faculty') {
+        setActiveTab('faculty-dashboard');
+      } else if (role === 'admin') {
+        setActiveTab('admin-dashboard');
+      }
+    } catch (err: any) {
+      console.error('Exception loading user profile:', err);
+      setAuthError('An unexpected error occurred while loading your profile from the database.');
+      await supabase.auth.signOut();
+      setCurrentUser(null);
+    }
+  };
+
+  // Restore authenticated session and listen for session changes
+  useEffect(() => {
+    let isMounted = true;
+
+    const restoreSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.warn('Session restoration error:', error.message);
+        }
+        if (session?.user && isMounted) {
+          await loadUserProfile(session.user);
+        }
+      } catch (err) {
+        console.error('Failed to restore session:', err);
+      } finally {
+        if (isMounted) setAuthLoading(false);
+      }
+    };
+
+    restoreSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+        if (session?.user) {
+          await loadUserProfile(session.user);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setCurrentUser(null);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
   const handleLogin = (user: UserProfile) => {
+    // Only used for controlled dev role switching if enabled
     setCurrentUser(user);
     if (user.role === 'student') {
       setActiveTab('dashboard');
@@ -71,8 +236,14 @@ export default function App() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error('Error signing out of Supabase:', err);
+    }
     setCurrentUser(null);
+    setAuthError(null);
   };
 
   const [notices, setNotices] = useState<Notice[]>(INITIAL_NOTICES);
@@ -231,8 +402,24 @@ export default function App() {
     showToast('RSVP confirmed! Event added to your campus calendar.');
   };
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#0b1326] flex flex-col items-center justify-center text-white font-sans">
+        <div className="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-4" />
+        <h2 className="text-lg font-bold text-slate-200">ScholarCore ERP</h2>
+        <p className="text-xs text-slate-400">Verifying authenticated session...</p>
+      </div>
+    );
+  }
+
   if (!currentUser) {
-    return <LoginView onLogin={handleLogin} />;
+    return (
+      <LoginView
+        onLogin={handleLogin}
+        authError={authError}
+        onClearAuthError={() => setAuthError(null)}
+      />
+    );
   }
 
   return (

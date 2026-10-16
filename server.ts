@@ -1,11 +1,12 @@
 import express from "express";
 import path from "path";
-import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
+import { requireAuth, requireRole, AuthRequest } from "./src/middleware/auth.ts";
+import { getSupabaseAdmin, isServerConfigValid } from "./src/lib/supabase-server.ts";
 
-dotenv.config();
+dotenv.config({ override: true });
 
 async function startServer() {
   const app = express();
@@ -13,15 +14,60 @@ async function startServer() {
 
   app.use(express.json());
 
-  // API Endpoint for AI Assistant using Gemini API
-  app.post("/api/assistant", async (req, res) => {
+  // Health check endpoint with configuration status (no secrets exposed)
+  app.get("/api/health", (_req, res) => {
+    res.json({
+      status: "ok",
+      app: "ScholarCore",
+      supabaseConfigured: isServerConfigValid(),
+      geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
+    });
+  });
+
+  // Authenticated Profile Endpoint - returns authoritative database profile for token owner
+  app.get("/api/auth/profile", requireAuth, async (req: AuthRequest, res) => {
     try {
-      const { prompt, context } = req.body;
+      const user = req.user!;
+      const admin = getSupabaseAdmin();
+      const { data: profile, error } = await admin
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (error) {
+        return res.status(500).json({ error: "Failed to retrieve user profile", details: error.message });
+      }
+
+      if (!profile) {
+        return res.status(404).json({
+          error: "Profile not found",
+          message: "No ERP profile record has been provisioned for this account.",
+        });
+      }
+
+      res.json({
+        user: {
+          id: user.id,
+          email: user.email,
+        },
+        profile,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: "Internal server error fetching profile", details: err?.message });
+    }
+  });
+
+  // Protected AI Assistant Endpoint
+  app.post("/api/assistant", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const { prompt } = req.body;
       const apiKey = process.env.GEMINI_API_KEY;
+      const user = req.user;
 
       if (!apiKey) {
         return res.status(200).json({
-          reply: `I am currently operating in offline mode. Here is information based on your student record:\n\nRegarding: "${prompt}"\n\nYour attendance is 87.5% (above 75% target), CGPA is 8.6/10, and all current Semester 4 fees are cleared. Feel free to check the specific tabs for details!`,
+          reply: `I am currently operating in offline mode. Student account ${user?.email || ""}:\n\nRegarding: "${prompt}"\n\nYour attendance is 87.5% (above 75% target), CGPA is 8.6/10, and all current semester dues are clear. Feel free to check the specific portal tabs for details!`,
         });
       }
 
@@ -34,17 +80,15 @@ async function startServer() {
         },
       });
 
-      const systemInstruction = `You are ScholarCore AI Assistant, an intelligent academic advisor and campus helper for Arjun Kumar (Roll No: 22CS045, B.Tech Computer Science, Semester 4).
-You have access to Arjun's live student record:
-- Attendance: 87.5% (Target: 75%). Subjects: DAA (89%), OS (85%), DBMS (88%).
-- Academic Standing: CGPA 8.6 / 10 (Top 5% of class).
-- Fee Dues: Total Dues ₹15,000 (Tuition Part 2 due in 12 days). Paid so far: ₹1,25,000. Scholarship: ₹20,000 Merit Waiver.
-- Recent Notices: Mid-Semester Exam Schedule Published (2h ago), Tech Symposium '24 Registrations Open.
-- Upcoming Events: Campus Placement Drive (Oct 12), Hackathon Kickoff (Oct 15 - RSVP'd).
-- Pending Assignments: Assignment 2 (Graph Algorithms - DAA) due in 2 days, SQL Query Optimization (DBMS) due in 5 days.
-- Lost & Found: 20 total items reported on campus, 14 recovered. Arjun posted a found Casio Calculator fx-991EX (1 inquiry).
-
-Provide clear, encouraging, precise, and concise answers tailored to the student's context. Use Markdown formatting when appropriate.`;
+      const systemInstruction = `You are ScholarCore AI Assistant, an intelligent academic advisor for Siddhartha Institute of Technology & Sciences.
+The student requesting assistance is authenticated as: ${user?.email || "Student"}.
+Current student stats:
+- Attendance: 87.5% (Target: 75%).
+- CGPA: 8.6 / 10.
+- Semester Dues: ₹15,000 pending (Tuition Part 2).
+- Recent Notices: Mid-Semester Exam Schedule Published, Tech Symposium '24 Registrations Open.
+- Upcoming Events: Campus Placement Drive, Hackathon Kickoff.
+Provide concise, professional, and encouraging answers.`;
 
       const response = await ai.models.generateContent({
         model: "gemini-3.8-flash",
@@ -57,16 +101,50 @@ Provide clear, encouraging, precise, and concise answers tailored to the student
 
       res.json({ reply: response.text || "No response received from ScholarCore Assistant." });
     } catch (error: any) {
-      console.error("Error in AI assistant endpoint:", error);
+      console.error("Error in AI assistant endpoint:", error?.message);
       res.json({
-        reply: `I am currently operating in offline mode. Here is information based on your student record:\n\nRegarding: "${req.body?.prompt || 'your query'}"\n\nYour attendance is 87.5% (above the 75% target), CGPA is 8.6/10, and all current Semester 4 dues are clear. Upcoming: Campus Placement Drive (Oct 12) and Hackathon Kickoff (Oct 15).`,
+        reply: `I am currently operating in offline mode. Here is information based on your student record:\n\nRegarding: "${req.body?.prompt || "your query"}"\n\nYour attendance is 87.5% (above the 75% target), CGPA is 8.6/10, and all current Semester 4 dues are clear. Upcoming: Campus Placement Drive and Hackathon Kickoff.`,
       });
     }
   });
 
-  // Health check
-  app.get("/api/health", (_req, res) => {
-    res.json({ status: "ok", app: "ScholarCore" });
+  // Privileged Admin Endpoint: Audit Logs
+  app.get("/api/admin/audit-logs", requireAuth, requireRole(["admin"]), async (_req: AuthRequest, res) => {
+    try {
+      const admin = getSupabaseAdmin();
+      const { data, error } = await admin
+        .from("audit_logs")
+        .select("*")
+        .order("timestamp", { ascending: false })
+        .limit(50);
+
+      if (error) {
+        return res.status(500).json({ error: "Failed to fetch audit logs", details: error.message });
+      }
+
+      res.json({ logs: data || [] });
+    } catch (err: any) {
+      res.status(500).json({ error: "Server error", details: err?.message });
+    }
+  });
+
+  // Privileged Faculty Endpoint: Class Management
+  app.get("/api/faculty/classes", requireAuth, requireRole(["faculty", "admin"]), async (req: AuthRequest, res) => {
+    try {
+      const admin = getSupabaseAdmin();
+      const { data, error } = await admin
+        .from("classes")
+        .select("*, subjects(*)")
+        .limit(20);
+
+      if (error) {
+        return res.status(500).json({ error: "Failed to fetch classes", details: error.message });
+      }
+
+      res.json({ classes: data || [] });
+    } catch (err: any) {
+      res.status(500).json({ error: "Server error", details: err?.message });
+    }
   });
 
   // Vite middleware for dev or static serving in production
